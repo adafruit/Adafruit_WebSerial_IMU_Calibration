@@ -149,10 +149,6 @@ async function finishDrawing() {
   return new Promise(requestAnimationFrame);
 }
 
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 function logData(line) {
   // Update the Log
   if (showTimestamp.checked) {
