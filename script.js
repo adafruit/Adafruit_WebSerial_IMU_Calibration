@@ -16,11 +16,11 @@ let outputDone;
 let inputStream;
 let outputStream;
 
-const maxLogLength = 500;
+const maxLogLength = 100;
 
 const colors = ['#0000FF', '#FF0000', '#009900', '#FF9900', '#CC00CC', '#666666', '#00CCFF', '#000000'];
 let dataSets = [];
-                 
+
 const baudRates = [300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 74880, 115200, 230400, 250000, 500000, 1000000, 2000000];
 const bufferSizes = [250, 500, 1000, 2500, 5000];
 const log = document.getElementById('log');
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const notSupported = document.getElementById('notSupported');
     notSupported.classList.add('hidden');
   }
-  
+
   initBaudRate();
   initBufferSize();
   graph = new Graph(document.getElementById('myChart'));
@@ -75,18 +75,13 @@ async function connect() {
   // - Request a port and open a connection.
   port = await navigator.serial.requestPort();
   // - Wait for the port to open.toggleUIConnected
-  await port.open({ baudrate: baudRate.value });
-
-  //const encoder = new TextEncoderStream();
-  //outputDone = encoder.readable.pipeTo(port.writable);
-  //outputStream = encoder.writable;
+  await port.open({ baudRate: baudRate.value });
 
   let decoder = new TextDecoderStream();
   inputDone = port.readable.pipeTo(decoder.writable);
   inputStream = decoder.readable
     .pipeThrough(new TransformStream(new LineBreakTransformer()));
-    //.pipeThrough(new TransformStream(new ObjectTransformer()));
-  
+
   reader = inputStream.getReader();
   readLoop().catch(async function(error) {
     toggleUIConnected(false);
@@ -112,7 +107,7 @@ async function disconnect() {
     outputStream = null;
     outputDone = null;
   }
-  
+
   await port.close();
   port = null;
 }
@@ -139,14 +134,19 @@ async function readLoop() {
           setupChart(plotdata);
         }
         addJSONValue(plotdata);
-      }      
+      }
     }
+    await finishDrawing();
     if (done) {
       console.log('[readLoop] DONE', done);
       reader.releaseLock();
       break;
     }
   }
+}
+
+async function finishDrawing() {
+  return new Promise(requestAnimationFrame);
 }
 
 function logData(line) {
@@ -164,8 +164,8 @@ function logData(line) {
   if (log.textContent.split("\n").length > maxLogLength + 1) {
     let logLines = log.innerHTML.replace(/(\n)/gm, "").split("<br>");
     log.innerHTML = logLines.splice(-maxLogLength).join("<br>\n");
-  }  
-      
+  }
+
   if (autoscroll.checked) {
     log.scrollTop = log.scrollHeight
   }
@@ -202,7 +202,7 @@ function updateTheme() {
     .forEach((styleSheet) => {
       enableStyleSheet(styleSheet, false);
     });
-  
+
   if (darkMode.checked) {
     enableStyleSheet(darkSS, true);
   } else {
@@ -353,27 +353,6 @@ class LineBreakTransformer {
   }
 }
 
-/**
- * @name ObjectTransformer
- * TransformStream to parse the stream into a valid object.
- */
-/*class ObjectTransformer { 
-  transform(chunk, controller) {
-    let plotdata;
-    if (chunk.substr(0, 4) == "Raw:") {
-      const magnetometer = chunk.substr(4).trim().split(",").slice(-3).map(x=>+x);
-      plotdata = {
-        xy: [magnetometer[0], magnetometer[1]],
-        yz: [magnetometer[1], magnetometer[2]],
-        zx: [magnetometer[2], magnetometer[0]],
-      }
-      controller.enqueue(plotdata);
-    } else {
-      controller.enqueue(null);
-    }
-  }
-}*/
-
 function convertJSON(chunk) {
   try {
     let jsonObj = JSON.parse(chunk);
@@ -427,7 +406,7 @@ function setupChart(value) {
   dataSets.forEach((dataSet) => {
     graph.addDataSet(dataSet.label, dataSet.borderColor);
   });
-  
+
   graph.update();
 }
 
@@ -455,8 +434,8 @@ function loadAllSettings() {
   showTimestamp.checked = loadSetting('timestamp', false);
   plotType.value = loadSetting('plottype', 'xy');
   graph.setPlotType(plotType.value);
-  baudRate.value = loadSetting('baudrate', 9600);
-  bufferSize.value = loadSetting('buffersize', 2500);
+  baudRate.value = loadSetting('baudrate', 115200);
+  bufferSize.value = loadSetting('buffersize', 1000);
   graph.setBufferSize(bufferSize.value);
   darkMode.checked = loadSetting('darkmode', false);
 }
@@ -466,7 +445,7 @@ function loadSetting(setting, defaultValue) {
   if (value == null) {
     return defaultValue;
   }
-  
+
   return value;
 }
 
